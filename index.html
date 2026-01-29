@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WyattzCoolerBro AI</title>
+
+<style>
+body {
+  margin:0;
+  background:black;
+  font-family:monospace;
+  overflow:hidden;
+  color:#00ffcc;
+}
+canvas{position:fixed;inset:0;z-index:0}
+
+/* CHAT */
+.chatbox{
+  position:relative;
+  z-index:1;
+  width:420px;
+  height:600px;
+  background:rgba(5,8,13,.9);
+  border:2px solid #00ffcc;
+  display:flex;
+  flex-direction:column;
+  box-shadow:0 0 20px #00ffcc55;
+  margin:auto;
+  top:50%;
+  transform:translateY(-50%);
+}
+.header{
+  padding:10px;
+  border-bottom:1px solid #00ffcc;
+  text-align:center;
+  font-weight:bold;
+  display:flex;
+  justify-content:space-between;
+}
+.messages{flex:1;padding:10px;overflow-y:auto}
+.msg{margin-bottom:10px}
+.user{color:#fff}
+.ai{color:#00ffcc}
+.typing{opacity:.7;font-style:italic}
+
+.input-area{
+  display:flex;
+  border-top:1px solid #00ffcc;
+}
+input{
+  flex:1;
+  background:black;
+  border:none;
+  color:#00ffcc;
+  padding:10px;
+  font-family:monospace;
+  outline:none;
+}
+button{
+  background:#00ffcc;
+  border:none;
+  padding:10px;
+  cursor:pointer;
+  font-family:monospace;
+  font-weight:bold;
+}
+
+/* CALCULATOR */
+.calculator{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background:#05080d;
+  border:2px solid #00ffcc;
+  padding:10px;
+  z-index:5;
+  display:none;
+  width:220px;
+}
+.calc-screen{
+  width:100%;
+  height:40px;
+  background:black;
+  color:#00ffcc;
+  border:none;
+  margin-bottom:5px;
+  font-family:monospace;
+  font-size:18px;
+  text-align:right;
+}
+.calc-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:5px;
+}
+.calc-grid button{
+  padding:10px;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="matrix"></canvas>
+
+<div class="chatbox">
+  <div class="header">
+    <span>WyattzCoolerBro v4.0</span>
+    <button onclick="toggleCalc()">CALC</button>
+  </div>
+  <div class="messages" id="messages"></div>
+  <div class="input-area">
+    <input id="input" placeholder="Talk to WyattzCoolerBro..." />
+    <button onclick="send()">SEND</button>
+  </div>
+</div>
+
+<!-- CALCULATOR -->
+<div class="calculator" id="calc">
+  <input class="calc-screen" id="calcScreen" disabled>
+  <div class="calc-grid">
+    <button onclick="press('7')">7</button>
+    <button onclick="press('8')">8</button>
+    <button onclick="press('9')">9</button>
+    <button onclick="press('/')">÷</button>
+
+    <button onclick="press('4')">4</button>
+    <button onclick="press('5')">5</button>
+    <button onclick="press('6')">6</button>
+    <button onclick="press('*')">×</button>
+
+    <button onclick="press('1')">1</button>
+    <button onclick="press('2')">2</button>
+    <button onclick="press('3')">3</button>
+    <button onclick="press('-')">−</button>
+
+    <button onclick="press('0')">0</button>
+    <button onclick="press('.')">.</button>
+    <button onclick="calculate()">=</button>
+    <button onclick="press('+')">+</button>
+
+    <button onclick="clearCalc()" style="grid-column:span 2">C</button>
+    <button onclick="toggleCalc()" style="grid-column:span 2">CLOSE</button>
+  </div>
+</div>
+
+<script>
+/* MATRIX */
+const canvas=document.getElementById("matrix"),ctx=canvas.getContext("2d");
+canvas.width=innerWidth;canvas.height=innerHeight;
+const chars="01WYATTZCOOLERBRO",size=14;
+const cols=canvas.width/size,drops=Array(Math.floor(cols)).fill(1);
+setInterval(()=>{
+  ctx.fillStyle="rgba(0,0,0,0.05)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle="#00ff00";
+  ctx.font=size+"px monospace";
+  drops.forEach((y,i)=>{
+    const t=chars[Math.floor(Math.random()*chars.length)];
+    ctx.fillText(t,i*size,y*size);
+    drops[i]=y*size>canvas.height&&Math.random()>.975?0:y+1;
+  });
+},33);
+
+/* CHAT */
+const messages=document.getElementById("messages");
+const input=document.getElementById("input");
+const responses=[
+  "That’s kinda fire.",
+  "Calculation approved.",
+  "WyattzCoolerBro online 😎",
+  "Processing complete.",
+  "System stable."
+];
+
+function addMessage(t,c){
+  const d=document.createElement("div");
+  d.className="msg "+c;
+  d.textContent=t;
+  messages.appendChild(d);
+  messages.scrollTop=messages.scrollHeight;
+  localStorage.setItem("chatHistory",messages.innerHTML);
+}
+function loadHistory(){
+  const h=localStorage.getItem("chatHistory");
+  if(h)messages.innerHTML=h;
+  else addMessage("WyattzCoolerBro: Yo. I’m WyattzCoolerBro 😎","ai");
+}
+
+/* TYPING SOUND */
+let audioCtx,interval;
+function startSound(){
+  if(!audioCtx)audioCtx=new AudioContext();
+  interval=setInterval(()=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.frequency.value=900+Math.random()*200;
+    g.gain.value=.02;
+    o.connect(g);g.connect(audioCtx.destination);
+    o.start();o.stop(audioCtx.currentTime+.03);
+  },80);
+}
+function stopSound(){clearInterval(interval)}
+
+function send(){
+  if(!input.value.trim())return;
+  addMessage("You: "+input.value,"user");
+  input.value="";
+  const t=document.createElement("div");
+  t.className="msg ai typing";
+  t.textContent="WyattzCoolerBro is typing...";
+  messages.appendChild(t);
+  startSound();
+  setTimeout(()=>{
+    stopSound();t.remove();
+    addMessage("WyattzCoolerBro: "+responses[Math.floor(Math.random()*responses.length)],"ai");
+  },1200);
+}
+input.addEventListener("keydown",e=>{if(e.key==="Enter")send()});
+loadHistory();
+
+/* CALCULATOR LOGIC */
+const calc=document.getElementById("calc");
+const screen=document.getElementById("calcScreen");
+function toggleCalc(){calc.style.display=calc.style.display==="block"?"none":"block"}
+function press(v){screen.value+=v}
+function clearCalc(){screen.value=""}
+function calculate(){
+  try{screen.value=eval(screen.value)}
+  catch{screen.value="ERROR"}
+}
+</script>
+
+</body>
+</html>
